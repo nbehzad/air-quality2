@@ -129,7 +129,7 @@ def create_mlp(input_shape=(240, 12), output_dim=48):
     model.add(Dense(units=100))
     model.add(Dense(units=output_dim))
 
-    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.01),
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
                   loss='mae', metrics=['mean_absolute_error', 'mean_absolute_percentage_error'])
 
     print(model.summary())

@@ -10,7 +10,7 @@ import argparse
 
 STEP = 1
 BATCH_SIZE = 512
-EPOCHS = 1
+EPOCHS = 20
 BUFFER_SIZE = 30000
 
 
@@ -300,7 +300,7 @@ def main(args):
         description='run ozone forecasting models on Istanbul data sets')
     parser.add_argument('-dataset', help='The name of data set existing in data directory', default='Basaksehir.csv')
     parser.add_argument('-model', help='The name of the model including mlp, lstm, cnn, lstm-cnn, cnn-lstm',
-                        default='lstm-cnn')
+                        default='all')
 
     args = vars(parser.parse_args())
     dataset_name = './data/' + args['dataset']
@@ -319,6 +319,7 @@ def main(args):
     elif model_name == 'lstm-cnn':
         run_lstm_cnn_experiment(dataset_name)
     elif model_name == 'all':
+        print('All experiments are running...')
         run_mlp_experiment(dataset_name)
         run_lstm_experiment(dataset_name)
         run_cnn_experiment(dataset_name)

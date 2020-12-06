@@ -60,7 +60,7 @@ class Dataset(object):
         '''
         return x_train, y_train, x_test, y_test
 
-    def get_up_scale_data(self, data, stride=4):
+    def get_up_scale_data(self, data, stride=None):
         up_scale_data = []
         for i in range(data.shape[0]):
             stride_data = [np.hstack((np.min(data[i, j:j+stride, :], axis=0),

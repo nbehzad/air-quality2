@@ -135,7 +135,7 @@ def evaluate(x_test, y_test, model_name='lstm', plot_count=10, is2input=True):
         pred = trained_model.predict({'serial_input': x_test[0], 'vector_input': x_test[1]}, verbose=1)
         x_test = x_test[0]
     elif type(x_test) == list and not is2input:
-        pred = trained_model.predict(x_test[0], verbose=1)
+        pred = trained_model.predict(x_test[1], verbose=1)
         x_test = x_test[0]
     else:
         pred = trained_model.predict(x_test, verbose=1)
@@ -159,7 +159,7 @@ def evaluate(x_test, y_test, model_name='lstm', plot_count=10, is2input=True):
             plt.close()
 
 
-def evaluate_yearly(x_test, y_test, model_name='lstm', plot_count=10):
+def evaluate_yearly(x_test, y_test, model_name='lstm'):
     model_dir = 'models/' + model_name
     plot_dir = 'plots/' + model_name + '/'
     weights = os.listdir(model_dir)
@@ -175,8 +175,7 @@ def evaluate_yearly(x_test, y_test, model_name='lstm', plot_count=10):
 
     trained_model = load_model(os.path.join(model_dir, best_weights))
     if type(x_test) == list:
-        pred = trained_model.predict({'serial_input': x_test[0], 'vector_input': x_test[1]}, verbose=1)
-        x_test = x_test[0]
+        pred = trained_model.predict({'serial_input': x_test[1], 'vector_input': x_test[1]}, verbose=1)
     else:
         pred = trained_model.predict(x_test, verbose=1)
 
@@ -215,13 +214,16 @@ def run_mlp_experiment(data_set):
     print('\n\n\nTraining begins for model MLP...\n')
     train(x_train, y_train, x_test, y_test, model_name='MLP')
     evaluate(x_test, y_test, model_name='MLP', plot_count=20)
+    evaluate_yearly(x_test, y_test, model_name='MLP')
 
-    for i in [2, 4, 8, 16, 24]:
+    for i in [4, 8, 16, 24]:
         print('\n\n\nTraining begins for model MLP-with-pooling{}...\n'.format(str(i)))
-        x_train_strided = ds.get_up_scale_data_parallel(x_train, i)
-        x_test_strided = ds.get_up_scale_data_parallel(x_test, i)
+        x_train_strided = ds.get_up_scale_data(x_train, i)
+        x_test_strided = ds.get_up_scale_data(x_test, i)
         train(x_train_strided, y_train, x_test_strided, y_test, model_name='MLP-with-pooling' + str(i))
-        evaluate([x_test, x_test_strided], y_test, model_name='MLP-with-pooling' + str(i), plot_count=20)
+        evaluate([x_test, x_test_strided], y_test, model_name='MLP-with-pooling{}'.format(str(i)), plot_count=20,
+                 is2input=False)
+        evaluate_yearly(x_test_strided, y_test, model_name='MLP-with-pooling{}'.format(str(i)))
 
 
 def run_lstm_experiment(data_set):
@@ -235,8 +237,9 @@ def run_lstm_experiment(data_set):
 
     for i in [1, 4, 8, 16, 24]:
         print('\n\n\nTraining begins for model LSTM-with-pooling{}...\n'.format(str(i)))
-        train(x_train, y_train, x_test, y_test, model_name='LSTM-with-pooling' + str(i), stride_pooling=i)
-        evaluate(x_test, y_test, model_name='LSTM-with-pooling' + str(i), plot_count=20)
+        train(x_train, y_train, x_test, y_test, model_name='LSTM-with-pooling{}'.format(str(i)), stride_pooling=i)
+        evaluate(x_test, y_test, model_name='LSTM-with-pooling{}'.format(str(i)), plot_count=20)
+        evaluate_yearly(x_test, y_test, model_name='LSTM-with-pooling{}'.format(str(i)))
 
 
 def run_cnn_experiment(data_set):
@@ -250,12 +253,14 @@ def run_cnn_experiment(data_set):
 
     print('\n\n\nTraining begins for model CNN-base ...\n')
     train(x_train, y_train, x_test, y_test, model_name='CNN-base')
-    evaluate_yearly(x_test, y_test, model_name='CNN-base', plot_count=20)
+    evaluate(x_test, y_test, model_name='CNN-base', plot_count=20)
+    evaluate_yearly(x_test, y_test, model_name='CNN-base')
 
     for i in [2, 4, 8, 16, 24]:
         print('\n\nTraining begins for model CNN-with-kernel{} ...\n'.format(str(i)))
-        train(x_train, y_train, x_test, y_test, model_name='CNN-with-kernel' + str(i), stride_pooling=i)
-        evaluate(x_test, y_test, model_name='CNN-with-kernel' + str(i), plot_count=20)
+        train(x_train, y_train, x_test, y_test, model_name='CNN-with-kernel{}'.format(str(i)), stride_pooling=i)
+        evaluate(x_test, y_test, model_name='CNN-with-kernel{}'.format(str(i)), plot_count=20)
+        evaluate_yearly(x_test, y_test, model_name='CNN-with-kernel{}'.format(str(i)))
 
 
 def run_cnn_lstm_experiment(data_set):
@@ -269,8 +274,9 @@ def run_cnn_lstm_experiment(data_set):
 
     for i in [2, 4, 8, 16, 24]:
         print('\n\n\nTraining begins for model CNN-LSTM-with-kernel{}...\n'.format(str(i)))
-        train(x_train, y_train, x_test, y_test, model_name='CNN-LSTM-with-kernel' + str(i), stride_pooling=i)
-        evaluate(x_test, y_test, model_name='CNN-LSTM-with-kernel' + str(i), plot_count=20)
+        train(x_train, y_train, x_test, y_test, model_name='CNN-LSTM-with-kernel{}'.format(str(i)), stride_pooling=i)
+        evaluate(x_test, y_test, model_name='CNN-LSTM-with-kernel{}'.format(str(i)), plot_count=20)
+        evaluate_yearly(x_test, y_test, model_name='CNN-LSTM-with-kernel{}'.format(str(i)))
 
 
 def run_lstm_cnn_experiment(data_set):
@@ -284,8 +290,9 @@ def run_lstm_cnn_experiment(data_set):
 
     for i in [2, 4, 8, 16, 24]:
         print('\n\n\nTraining begins for model LSTM-CNN-with-kernel{}...\n'.format(str(i)))
-        train(x_train, y_train, x_test, y_test, model_name='LSTM-CNN-with-kernel' + str(i), stride_pooling=i)
-        evaluate(x_test, y_test, model_name='LSTM-CNN-with-kernel' + str(i), plot_count=20)
+        train(x_train, y_train, x_test, y_test, model_name='LSTM-CNN-with-kernel{}'.format(str(i)), stride_pooling=i)
+        evaluate(x_test, y_test, model_name='LSTM-CNN-with-kernel{}'.format(str(i)), plot_count=20)
+        evaluate_yearly(x_test, y_test, model_name='LSTM-CNN-with-kernel{}'.format(str(i)))
 
 
 def main(args):
@@ -293,7 +300,7 @@ def main(args):
         description='run ozone forecasting models on Istanbul data sets')
     parser.add_argument('-dataset', help='The name of data set existing in data directory', default='Basaksehir.csv')
     parser.add_argument('-model', help='The name of the model including mlp, lstm, cnn, lstm-cnn, cnn-lstm',
-                        default='cnn')
+                        default='lstm-cnn')
 
     args = vars(parser.parse_args())
     dataset_name = './data/' + args['dataset']

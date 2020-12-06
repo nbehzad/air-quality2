@@ -25,7 +25,7 @@ class Dataset(object):
         self.data_matrix = np.hstack((self.data_matrix[:, 0:col_index], cat_matrix, self.data_matrix[:, col_index + 1:]))
         print(self.data_matrix.shape)
 
-    def get_train_test(self, cut_point_index=35053, window_size=168, predict_period=24):
+    def get_train_test(self, cut_point_index=35040, window_size=168, predict_period=24):
         x_train = []
         x_test = []
         y_train = []

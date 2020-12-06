@@ -168,8 +168,8 @@ x_train, y_train, x_test, y_test = ds.get_train_test(window_size=240, predict_pe
 # x_train = ds.get_up_scale_data(x_train, 4)
 # x_test_feature = ds.get_up_scale_data(x_test, 4)
 
-x_train_feature = ds.create_pollution_feature_data(x_train)
-x_test_feature = ds.create_pollution_feature_data(x_test)
+x_train_feature = ds.get_up_scale_data_parallel(x_train, 4)
+x_test_feature = ds.get_up_scale_data_parallel(x_test, 4)
 
 np.random.seed(13)
 tf.random.set_seed(13)

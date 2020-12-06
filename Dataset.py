@@ -69,8 +69,7 @@ class Dataset(object):
 
         return np.array(up_scale_data)
 
-    def calc_pollution_featues(self, data_frame):
-        stride = 4
+    def get_up_scale_data_parallel(self, data_frame, stride=4):
         strided_data = [np.hstack((np.min(data_frame[j:j + stride, :], axis=0),
                                    np.max(data_frame[j:j + stride, :], axis=0),
                                    np.mean(data_frame[j:j + stride, :], axis=0),

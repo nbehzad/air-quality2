@@ -159,6 +159,50 @@ def evaluate(x_test, y_test, model_name='lstm', plot_count=10, is2input=True):
             plt.close()
 
 
+def evaluate_yearly(x_test, y_test, model_name='lstm', plot_count=10):
+    model_dir = 'models/' + model_name
+    plot_dir = 'plots/' + model_name + '/'
+    weights = os.listdir(model_dir)
+    best_val = 100
+    best_weights = ''
+    for weight in weights:
+        if len(weight.split('-')) > 2:
+            val_loss = weight.split('-')
+            val_loss = float(val_loss[2])
+            if val_loss < best_val:
+                best_val = val_loss
+                best_weights = weight
+
+    trained_model = load_model(os.path.join(model_dir, best_weights))
+    if type(x_test) == list:
+        pred = trained_model.predict({'serial_input': x_test[0], 'vector_input': x_test[1]}, verbose=1)
+        x_test = x_test[0]
+    else:
+        pred = trained_model.predict(x_test, verbose=1)
+
+    pred = [np.pad(pred[i], (i, pred.shape[0] - 1 - i), 'constant', constant_values=(np.nan,))
+            for i in range(pred.shape[0])]
+    pred = np.nanmean(pred, axis=0)
+
+    y_test = [np.pad(y_test[i], (i, y_test.shape[0] - 1 - i), 'constant', constant_values=(np.nan,))
+              for i in range(y_test.shape[0])]
+    y_test = np.nanmean(y_test, axis=0)
+
+    x_axis = np.arange(len(y_test) + 1)[1:]
+
+    plt.figure(figsize=(16, 6))
+    plt.plot(x_axis, pred, label="predicted", linewidth=0.8)
+    plt.plot(x_axis, y_test, label="Observation", linewidth=0.8, alpha=0.5)
+    plt.title('{} model'.format(model_name))
+    plt.xlabel('time')
+    plt.ylabel('Normalized Concentration')
+    plt.legend()
+    plt.draw()
+    create_directory(plot_dir)
+    plt.savefig(plot_dir + model_name + '-yearly-prediction-plot')
+    plt.close()
+
+
 def run_mlp_experiment(data_set):
     ds = Dataset(data_set)
     ds.read_csv_data()
@@ -206,7 +250,7 @@ def run_cnn_experiment(data_set):
 
     print('\n\n\nTraining begins for model CNN-base ...\n')
     train(x_train, y_train, x_test, y_test, model_name='CNN-base')
-    evaluate(x_test, y_test, model_name='CNN-base', plot_count=20)
+    evaluate_yearly(x_test, y_test, model_name='CNN-base', plot_count=20)
 
     for i in [2, 4, 8, 16, 24]:
         print('\n\nTraining begins for model CNN-with-kernel{} ...\n'.format(str(i)))
@@ -267,6 +311,12 @@ def main(args):
         run_cnn_lstm_experiment(dataset_name)
     elif model_name == 'lstm-cnn':
         run_lstm_cnn_experiment(dataset_name)
+    elif model_name == 'all':
+        run_mlp_experiment(dataset_name)
+        run_lstm_experiment(dataset_name)
+        run_cnn_experiment(dataset_name)
+        run_cnn_lstm_experiment(dataset_name)
+        run_lstm_cnn_experiment(dataset_name)
     else:
         print('Invalid model name')
 
@@ -274,6 +324,5 @@ def main(args):
 
 
 if __name__ == '__main__':
-
     args = sys.argv
     main(args)

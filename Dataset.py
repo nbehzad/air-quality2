@@ -4,8 +4,9 @@ from multiprocessing import Pool
 
 
 class Dataset(object):
-    def __init__(self, filename):
+    def __init__(self, filename, feature_stride_size=None):
         self.filename = filename
+        self.feature_stride_size = feature_stride_size
 
     def read_csv_data(self):
         self.data_matrix = genfromtxt(self.filename, delimiter=',', skip_header=1)
@@ -62,25 +63,28 @@ class Dataset(object):
     def get_up_scale_data(self, data, stride=4):
         up_scale_data = []
         for i in range(data.shape[0]):
-            stride_data = [np.hstack((np.min(data[i, j:j+stride, :], axis=0), np.max(data[i, j:j+stride, :], axis=0),
-                                      np.mean(data[i, j:j+stride, :], axis=0), np.std(data[i, j:j+stride, :], axis=0)))
+            stride_data = [np.hstack((np.min(data[i, j:j+stride, :], axis=0),
+                                      np.max(data[i, j:j+stride, :], axis=0),
+                                      np.mean(data[i, j:j+stride, :], axis=0),
+                                      np.std(data[i, j:j+stride, :], axis=0)))
                            for j in range(0, data.shape[1], stride)]
-            up_scale_data.append([k for j in stride_data for k in j])
+            up_scale_data.append(stride_data)
 
         return np.array(up_scale_data)
 
-    def get_up_scale_data_parallel(self, data_frame, stride=4):
-        strided_data = [np.hstack((np.min(data_frame[j:j + stride, :], axis=0),
-                                   np.max(data_frame[j:j + stride, :], axis=0),
-                                   np.mean(data_frame[j:j + stride, :], axis=0),
-                                   np.std(data_frame[j:j + stride, :], axis=0)))
-                        for j in range(0, data_frame.shape[0], stride)]
-        return [k for j in strided_data for k in j]
+    def calc_up_scale_data(self, data_frame):
+        strided_data = [np.hstack((np.min(data_frame[j:j + self.feature_stride_size, :], axis=0),
+                                   np.max(data_frame[j:j + self.feature_stride_size, :], axis=0),
+                                   np.mean(data_frame[j:j + self.feature_stride_size, :], axis=0),
+                                   np.std(data_frame[j:j + self.feature_stride_size, :], axis=0)))
+                        for j in range(0, data_frame.shape[0], self.feature_stride_size)]
+        return strided_data
 
-    def create_pollution_feature_data(self, data):
+    def get_up_scale_data_parallel(self, data, stride=None):
         result = []
+        self.feature_stride_size = stride
         with Pool(processes=8) as pool:
-            result = pool.map(self.calc_pollution_featues, data)
+            result = pool.map(self.calc_up_scale_data, data)
 
         return np.array(result)
 

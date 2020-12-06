@@ -1,9 +1,10 @@
 import tensorflow as tf
 from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import Dense, MaxPooling1D, Flatten, Input, concatenate, LSTM, Dropout, Conv1D, add
+from tensorflow.keras.layers import Dense, AveragePooling1D, MaxPooling1D, Flatten, Input, concatenate, LSTM, Dropout, \
+    Conv1D, add
 
 
-def create_lstm(input_shape=(168, 25), output_dim=24):
+def create_lstm_base(input_shape=(240, 12), output_dim=24):
     input_layer = Input(shape=input_shape)
     lstm_layer1 = LSTM(32, dropout=0.4, return_sequences=True, activation='tanh')(input_layer)
     lstm_layer2 = LSTM(16, dropout=0.2, activation='relu')(lstm_layer1)
@@ -19,13 +20,17 @@ def create_lstm(input_shape=(168, 25), output_dim=24):
     return model
 
 
-def create_lstm_cnn(input_shape=(168, 25), output_dim=48):
+def create_lstm_with_pooling(input_shape=(240, 12), output_dim=24, pooling=1):
     input_layer = Input(shape=input_shape)
-    lstm_layer = LSTM(32, return_sequences=True)(input_layer)
-    cnn_layer = Conv1D(100, kernel_size=4, padding='valid', strides=4)(lstm_layer)
-    cnn_layer = Dropout(0.2)(cnn_layer)
-    pooling_layer = Flatten()(cnn_layer)
-    output_layer = Dense(units=output_dim)(pooling_layer)
+    if pooling > 1:
+        pooling_layer = AveragePooling1D(pool_size=pooling, strides=pooling, padding="valid",
+                                         data_format="channels_last")(input_layer)
+        lstm_layer = LSTM(32, dropout=0.2, activation='tanh')(pooling_layer)
+    else:
+        lstm_layer = LSTM(32, dropout=0.2, activation='tanh')(input_layer)
+
+    hidden_layer = Dense(units=100, activation='relu')(lstm_layer)
+    output_layer = Dense(units=output_dim)(hidden_layer)
 
     model = Model(inputs=input_layer, outputs=output_layer)
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
@@ -35,15 +40,61 @@ def create_lstm_cnn(input_shape=(168, 25), output_dim=48):
     return model
 
 
-def create_cnn_timestep(input_shape=(168, 12), output_dim=48):
+def create_cnn_base(input_shape=(240, 12), output_dim=48):
     model = Sequential()
     model.add(Input(shape=input_shape))
-    model.add(Conv1D(filters=100, kernel_size=4, padding="valid", strides=4))
+    model.add(Conv1D(filters=100, kernel_size=2, strides=1, padding="valid"))
     model.add(Dropout(rate=0.2))
+    model.add(MaxPooling1D(pool_size=2, strides=2, padding='valid'))
     model.add(Flatten())
-    # model.add(Dense(units=output_dim))
     model.add(Dense(units=output_dim))
 
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+                  loss='mae', metrics=['mean_absolute_error', 'mean_absolute_percentage_error'])
+
+    print(model.summary())
+    return model
+
+
+def create_cnn(input_shape=(240, 12), output_dim=48, kernel=4):
+    model = Sequential()
+    model.add(Input(shape=input_shape))
+    model.add(Conv1D(filters=100, kernel_size=kernel, strides=kernel, padding="valid"))
+    model.add(Dropout(rate=0.2))
+    model.add(Flatten())
+    model.add(Dense(units=output_dim))
+
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+                  loss='mae', metrics=['mean_absolute_error', 'mean_absolute_percentage_error'])
+
+    print(model.summary())
+    return model
+
+
+def create_cnn_lstm(input_shape=(240, 12), output_dim=48, kernel=4):
+    input_layer = Input(shape=input_shape)
+    cnn_layer = Conv1D(100, kernel_size=kernel, padding='valid', strides=kernel)(input_layer)
+    cnn_layer = Dropout(0.2)(cnn_layer)
+    lstm_layer = LSTM(32)(cnn_layer)
+    output_layer = Dense(units=output_dim)(lstm_layer)
+
+    model = Model(inputs=input_layer, outputs=output_layer)
+    model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+                  loss='mae', metrics=['mean_absolute_error', 'mean_absolute_percentage_error'])
+
+    print(model.summary())
+    return model
+
+
+def create_lstm_cnn(input_shape=(240, 12), output_dim=48, kernel=4):
+    input_layer = Input(shape=input_shape)
+    lstm_layer = LSTM(32, return_sequences=True)(input_layer)
+    cnn_layer = Conv1D(100, kernel_size=kernel, padding='valid', strides=kernel)(lstm_layer)
+    cnn_layer = Dropout(0.2)(cnn_layer)
+    pooling_layer = Flatten()(cnn_layer)
+    output_layer = Dense(units=output_dim)(pooling_layer)
+
+    model = Model(inputs=input_layer, outputs=output_layer)
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
                   loss='mae', metrics=['mean_absolute_error', 'mean_absolute_percentage_error'])
 
@@ -71,9 +122,11 @@ def create_lstm_cnn2(input_shape=(240, 12), output_dim=48):
     return model
 
 
-def create_mlp(input_dim=1440, output_dim=48):
+def create_mlp(input_shape=(240, 12), output_dim=48):
     model = Sequential()
-    model.add(Dense(units=100, input_dim=input_dim))
+    model.add(Input(shape=input_shape))
+    model.add(Flatten())
+    model.add(Dense(units=100))
     model.add(Dense(units=output_dim))
 
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.01),

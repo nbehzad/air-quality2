@@ -5,10 +5,12 @@ from keras.models import load_model
 import matplotlib.pyplot as plt
 import os
 import numpy as np
+import sys
+import argparse
 
 STEP = 1
 BATCH_SIZE = 512
-EPOCHS = 20
+EPOCHS = 1
 BUFFER_SIZE = 30000
 
 
@@ -70,7 +72,8 @@ def train2input(x_train, y_train, x_test, y_test, model_dir='models/LSTM'):
     plot_train_history(h, model_dir + '/model-history.png')
 
 
-def train2(x_train, y_train, x_test, y_test, model_dir='models/LSTM'):
+def train(x_train, y_train, x_test, y_test, model_name='lstm', stride_pooling=None):
+    model_dir = 'models/' + model_name
     train_data = tf.data.Dataset.from_tensor_slices((x_train, y_train))
     train_data = train_data.cache().shuffle(BUFFER_SIZE).batch(BATCH_SIZE).repeat()
 
@@ -81,10 +84,23 @@ def train2(x_train, y_train, x_test, y_test, model_dir='models/LSTM'):
     checkpoint = ModelCheckpoint(model_dir + '/weights-{epoch:03d}-{val_loss:.4f}-.hdf5', monitor='val_loss',
                                  verbose=1, save_best_only=True, mode='auto')
 
-    # model = create_mlp(input_dim=x_train.shape[1], output_dim=y_train.shape[-1])
-    # model = create_lstm(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1])
-    # model = create_lstm_cnn(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1])
-    # model = create_cnn_timestep(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1])
+    if str.lower(model_name).startswith('mlp'):
+        model = create_mlp(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1])
+    elif str.lower(model_name).startswith('lstm-with-pooling'):
+        model = create_lstm_with_pooling(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1],
+                                         pooling=stride_pooling)
+    elif str.lower(model_name).startswith('cnn-base'):
+        model = create_cnn_base(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1])
+    elif str.lower(model_name).startswith('cnn-with-kernel'):
+        model = create_cnn(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1], kernel=stride_pooling)
+    elif str.lower(model_name).startswith('cnn-lstm'):
+        model = create_cnn_lstm(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1], kernel=stride_pooling)
+    elif str.lower(model_name).startswith('lstm-cnn'):
+        model = create_lstm_cnn(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1], kernel=stride_pooling)
+    else:
+        print('Invalid model name')
+        return
+
     h = model.fit(train_data, validation_data=val_data, steps_per_epoch=int(x_train.shape[0]/BATCH_SIZE) + 1,
                   validation_steps=int(x_train.shape[0]/BATCH_SIZE) + 1, verbose=1, callbacks=[checkpoint],
                   epochs=EPOCHS)
@@ -100,26 +116,9 @@ def train2(x_train, y_train, x_test, y_test, model_dir='models/LSTM'):
     '''
 
 
-def train(data_file_name='./data/Basaksehir.csv', model_dir='models/LSTM', bach_size=512):
-    ds = Dataset(data_file_name)
-    ds.read_csv_data()
-    ds.normalize()
-    x_train, y_train, x_test, y_test = ds.get_train_test(window_size=240, predict_period=48)
-
-    create_directory(model_dir)
-
-    checkpoint = ModelCheckpoint(model_dir + '/weights-{epoch:03d}-{val_loss:.4f}-.hdf5', monitor='val_loss',
-                                 verbose=1, save_best_only=True, mode='auto')
-
-    model = create_lstm(input_shape=x_train.shape[-2:], lstm_dim=64, output_dim=y_train.shape[-1], dropout=.2)
-    h = model.fit(x_train, y_train, validation_data=[x_test, y_test], batch_size=BATCH_SIZE, epochs=EPOCHS, verbose=1,
-                  shuffle=True, callbacks=[checkpoint])
-
-    plot_train_history(h, model_dir + '/model-history.png')
-
-
-def evaluate(x_test, y_test, model_dir='models/LSTM', plot_count=10, plot_dir='plots/', is2input=True):
-
+def evaluate(x_test, y_test, model_name='lstm', plot_count=10, is2input=True):
+    model_dir = 'models/' + model_name
+    plot_dir = 'plots/' + model_name + '/'
     weights = os.listdir(model_dir)
     best_val = 100
     best_weights = ''
@@ -160,21 +159,121 @@ def evaluate(x_test, y_test, model_dir='models/LSTM', plot_count=10, plot_dir='p
             plt.close()
 
 
-ds = Dataset('./data/Basaksehir.csv')
-ds.read_csv_data()
-ds.normalize()
-x_train, y_train, x_test, y_test = ds.get_train_test(window_size=240, predict_period=48)
+def run_mlp_experiment(data_set):
+    ds = Dataset(data_set)
+    ds.read_csv_data()
+    ds.normalize()
+    x_train, y_train, x_test, y_test = ds.get_train_test(window_size=240, predict_period=48)
 
-# x_train = ds.get_up_scale_data(x_train, 4)
-# x_test_feature = ds.get_up_scale_data(x_test, 4)
+    np.random.seed(13)
+    tf.random.set_seed(13)
 
-x_train_feature = ds.get_up_scale_data_parallel(x_train, 4)
-x_test_feature = ds.get_up_scale_data_parallel(x_test, 4)
+    print('\n\n\nTraining begins for model MLP...\n')
+    train(x_train, y_train, x_test, y_test, model_name='MLP')
+    evaluate(x_test, y_test, model_name='MLP', plot_count=20)
 
-np.random.seed(13)
-tf.random.set_seed(13)
-model_dir = 'models/cnn100-mlp100drop0.3-attention-all-features'
-# train2(x_train, y_train, x_test_feature, y_test, model_dir=model_dir)
-train2input([x_train, x_train_feature], y_train, [x_test, x_test_feature], y_test, model_dir=model_dir)
-evaluate([x_test, x_test_feature], y_test, model_dir=model_dir, plot_dir='plots/cnn100-mlp100drop0.3-attention-all-features/', plot_count=20)
+    for i in [2, 4, 8, 16, 24]:
+        print('\n\n\nTraining begins for model MLP-with-pooling{}...\n'.format(str(i)))
+        x_train_strided = ds.get_up_scale_data_parallel(x_train, i)
+        x_test_strided = ds.get_up_scale_data_parallel(x_test, i)
+        train(x_train_strided, y_train, x_test_strided, y_test, model_name='MLP-with-pooling' + str(i))
+        evaluate([x_test, x_test_strided], y_test, model_name='MLP-with-pooling' + str(i), plot_count=20)
 
+
+def run_lstm_experiment(data_set):
+    ds = Dataset(data_set)
+    ds.read_csv_data()
+    ds.normalize()
+    x_train, y_train, x_test, y_test = ds.get_train_test(window_size=240, predict_period=48)
+
+    np.random.seed(13)
+    tf.random.set_seed(13)
+
+    for i in [1, 4, 8, 16, 24]:
+        print('\n\n\nTraining begins for model LSTM-with-pooling{}...\n'.format(str(i)))
+        train(x_train, y_train, x_test, y_test, model_name='LSTM-with-pooling' + str(i), stride_pooling=i)
+        evaluate(x_test, y_test, model_name='LSTM-with-pooling' + str(i), plot_count=20)
+
+
+def run_cnn_experiment(data_set):
+    ds = Dataset(data_set)
+    ds.read_csv_data()
+    ds.normalize()
+    x_train, y_train, x_test, y_test = ds.get_train_test(window_size=240, predict_period=48)
+
+    np.random.seed(13)
+    tf.random.set_seed(13)
+
+    print('\n\n\nTraining begins for model CNN-base ...\n')
+    train(x_train, y_train, x_test, y_test, model_name='CNN-base')
+    evaluate(x_test, y_test, model_name='CNN-base', plot_count=20)
+
+    for i in [2, 4, 8, 16, 24]:
+        print('\n\nTraining begins for model CNN-with-kernel{} ...\n'.format(str(i)))
+        train(x_train, y_train, x_test, y_test, model_name='CNN-with-kernel' + str(i), stride_pooling=i)
+        evaluate(x_test, y_test, model_name='CNN-with-kernel' + str(i), plot_count=20)
+
+
+def run_cnn_lstm_experiment(data_set):
+    ds = Dataset(data_set)
+    ds.read_csv_data()
+    ds.normalize()
+    x_train, y_train, x_test, y_test = ds.get_train_test(window_size=240, predict_period=48)
+
+    np.random.seed(13)
+    tf.random.set_seed(13)
+
+    for i in [2, 4, 8, 16, 24]:
+        print('\n\n\nTraining begins for model CNN-LSTM-with-kernel{}...\n'.format(str(i)))
+        train(x_train, y_train, x_test, y_test, model_name='CNN-LSTM-with-kernel' + str(i), stride_pooling=i)
+        evaluate(x_test, y_test, model_name='CNN-LSTM-with-kernel' + str(i), plot_count=20)
+
+
+def run_lstm_cnn_experiment(data_set):
+    ds = Dataset(data_set)
+    ds.read_csv_data()
+    ds.normalize()
+    x_train, y_train, x_test, y_test = ds.get_train_test(window_size=240, predict_period=48)
+
+    np.random.seed(13)
+    tf.random.set_seed(13)
+
+    for i in [2, 4, 8, 16, 24]:
+        print('\n\n\nTraining begins for model LSTM-CNN-with-kernel{}...\n'.format(str(i)))
+        train(x_train, y_train, x_test, y_test, model_name='LSTM-CNN-with-kernel' + str(i), stride_pooling=i)
+        evaluate(x_test, y_test, model_name='LSTM-CNN-with-kernel' + str(i), plot_count=20)
+
+
+def main(args):
+    parser = argparse.ArgumentParser(
+        description='run ozone forecasting models on Istanbul data sets')
+    parser.add_argument('-dataset', help='The name of data set existing in data directory', default='Basaksehir.csv')
+    parser.add_argument('-model', help='The name of the model including mlp, lstm, cnn, lstm-cnn, cnn-lstm',
+                        default='cnn')
+
+    args = vars(parser.parse_args())
+    dataset_name = './data/' + args['dataset']
+    model_name = args['model']
+
+    print('\n\nExperiment is started for dataset {} using {} model ...'.format(dataset_name, str.upper(model_name)))
+
+    if model_name == 'mlp':
+        run_mlp_experiment(dataset_name)
+    elif model_name == 'lstm':
+        run_lstm_experiment(dataset_name)
+    elif model_name == 'cnn':
+        run_cnn_experiment(dataset_name)
+    elif model_name == 'cnn-lstm':
+        run_cnn_lstm_experiment(dataset_name)
+    elif model_name == 'lstm-cnn':
+        run_lstm_cnn_experiment(dataset_name)
+    else:
+        print('Invalid model name')
+
+    print()
+
+
+if __name__ == '__main__':
+
+    args = sys.argv
+    main(args)

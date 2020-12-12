@@ -149,9 +149,9 @@ def evaluate(x_test, y_test, model_name='lstm', plot_count=10, is2input=True):
             plt.figure(figsize=(12, 6))
             plt.plot(x_axis, np.hstack((x_test[index, :, -1], pred[index])), label="predicted")
             plt.plot(x_axis, np.hstack((x_test[index, :, -1], y_test[index])), label="Observation")
-            plt.title('LSTM model result on test instance ' + str(index))
-            plt.xlabel('time')
-            plt.ylabel('Normalized Concentration')
+            plt.title('{} model on instance {}'.format(model_name, str(index)))
+            plt.xlabel('Time(h)')
+            plt.ylabel('Normalized Ozone Concentration')
             plt.legend()
             plt.draw()
             create_directory(plot_dir)
@@ -160,6 +160,9 @@ def evaluate(x_test, y_test, model_name='lstm', plot_count=10, is2input=True):
 
 
 def evaluate_yearly(x_test, y_test, model_name='lstm'):
+    def moving_average(x, s):
+        return [np.mean(x[j:j + s]) for j in range(0, len(x), s)]
+
     model_dir = 'models/' + model_name
     plot_dir = 'plots/' + model_name + '/'
     weights = os.listdir(model_dir)
@@ -187,14 +190,17 @@ def evaluate_yearly(x_test, y_test, model_name='lstm'):
               for i in range(y_test.shape[0])]
     y_test = np.nanmean(y_test, axis=0)
 
+    pred = moving_average(pred, 24)
+    y_test = moving_average(y_test, 24)
+
     x_axis = np.arange(len(y_test) + 1)[1:]
 
     plt.figure(figsize=(16, 6))
     plt.plot(x_axis, pred, label="predicted", linewidth=0.8)
     plt.plot(x_axis, y_test, label="Observation", linewidth=0.8, alpha=0.5)
     plt.title('{} model'.format(model_name))
-    plt.xlabel('time')
-    plt.ylabel('Normalized Concentration')
+    plt.xlabel('Time(24h)')
+    plt.ylabel('Normalized Ozone Concentration')
     plt.legend()
     plt.draw()
     create_directory(plot_dir)
@@ -298,7 +304,7 @@ def run_lstm_cnn_experiment(data_set):
 def main(args):
     parser = argparse.ArgumentParser(
         description='run ozone forecasting models on Istanbul data sets')
-    parser.add_argument('-dataset', help='The name of data set existing in data directory', default='Basaksehir.csv')
+    parser.add_argument('-dataset', help='The name of data set existing in data directory', default='Kadikoy.csv')
     parser.add_argument('-model', help='The name of the model including mlp, lstm, cnn, lstm-cnn, cnn-lstm',
                         default='all')
 

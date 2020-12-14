@@ -56,10 +56,10 @@ def create_cnn_base(input_shape=(240, 12), output_dim=48):
     return model
 
 
-def create_cnn(input_shape=(240, 12), output_dim=48, kernel=4):
+def create_cnn(input_shape=(240, 12), output_dim=48, kernel=4, stride=1):
     model = Sequential()
     model.add(Input(shape=input_shape))
-    model.add(Conv1D(filters=100, kernel_size=kernel, strides=kernel, padding="valid"))
+    model.add(Conv1D(filters=100, kernel_size=kernel, strides=stride, padding="valid"))
     model.add(Dropout(rate=0.2))
     model.add(Flatten())
     model.add(Dense(units=output_dim))
@@ -71,9 +71,9 @@ def create_cnn(input_shape=(240, 12), output_dim=48, kernel=4):
     return model
 
 
-def create_cnn_lstm(input_shape=(240, 12), output_dim=48, kernel=4):
+def create_cnn_lstm(input_shape=(240, 12), output_dim=48, kernel=4, stride=1):
     input_layer = Input(shape=input_shape)
-    cnn_layer = Conv1D(100, kernel_size=kernel, padding='valid', strides=kernel)(input_layer)
+    cnn_layer = Conv1D(100, kernel_size=kernel, padding='valid', strides=stride)(input_layer)
     cnn_layer = Dropout(0.2)(cnn_layer)
     lstm_layer = LSTM(32)(cnn_layer)
     output_layer = Dense(units=output_dim)(lstm_layer)
@@ -86,10 +86,10 @@ def create_cnn_lstm(input_shape=(240, 12), output_dim=48, kernel=4):
     return model
 
 
-def create_lstm_cnn(input_shape=(240, 12), output_dim=48, kernel=4):
+def create_lstm_cnn(input_shape=(240, 12), output_dim=48, kernel=4, stride=1):
     input_layer = Input(shape=input_shape)
     lstm_layer = LSTM(32, return_sequences=True)(input_layer)
-    cnn_layer = Conv1D(100, kernel_size=kernel, padding='valid', strides=kernel)(lstm_layer)
+    cnn_layer = Conv1D(100, kernel_size=kernel, padding='valid', strides=stride)(lstm_layer)
     cnn_layer = Dropout(0.2)(cnn_layer)
     pooling_layer = Flatten()(cnn_layer)
     output_layer = Dense(units=output_dim)(pooling_layer)
@@ -102,12 +102,12 @@ def create_lstm_cnn(input_shape=(240, 12), output_dim=48, kernel=4):
     return model
 
 
-def create_lstm_cnn2(input_shape=(240, 12), output_dim=48):
+def create_lstm_cnn2(input_shape=(240, 12), output_dim=48, kernel=4, stride=1):
     input_layer = Input(shape=input_shape)
     lstm_layer = LSTM(32, return_sequences=False)(input_layer)
     lstm_dense = Dense(output_dim)(lstm_layer)
 
-    cnn_layer = Conv1D(100, kernel_size=4, padding='valid', strides=4)(input_layer)
+    cnn_layer = Conv1D(100, kernel_size=kernel, padding='valid', strides=stride)(input_layer)
     cnn_layer = Dropout(0.2)(cnn_layer)
     cnn_layer = Flatten()(cnn_layer)
     cnn_dense = Dense(output_dim)(cnn_layer)

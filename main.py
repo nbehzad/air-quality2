@@ -72,8 +72,8 @@ def train2input(x_train, y_train, x_test, y_test, model_dir='models/LSTM'):
     plot_train_history(h, model_dir + '/model-history.png')
 
 
-def train(x_train, y_train, x_test, y_test, model_name='lstm', stride_pooling=None):
-    model_dir = 'models/' + model_name
+def train(x_train, y_train, x_test, y_test, model_name='lstm', data_name='all', stride_pooling=None):
+    model_dir = 'models/' + data_name + '/' + model_name
     train_data = tf.data.Dataset.from_tensor_slices((x_train, y_train))
     train_data = train_data.cache().shuffle(BUFFER_SIZE).batch(BATCH_SIZE).repeat()
 
@@ -84,6 +84,7 @@ def train(x_train, y_train, x_test, y_test, model_name='lstm', stride_pooling=No
     checkpoint = ModelCheckpoint(model_dir + '/weights-{epoch:03d}-{val_loss:.4f}-.hdf5', monitor='val_loss',
                                  verbose=1, save_best_only=True, mode='auto')
 
+    stride_size = 1
     if str.lower(model_name).startswith('mlp'):
         model = create_mlp(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1])
     elif str.lower(model_name).startswith('lstm-with-pooling'):
@@ -92,11 +93,20 @@ def train(x_train, y_train, x_test, y_test, model_name='lstm', stride_pooling=No
     elif str.lower(model_name).startswith('cnn-base'):
         model = create_cnn_base(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1])
     elif str.lower(model_name).startswith('cnn-with-kernel'):
-        model = create_cnn(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1], kernel=stride_pooling)
+        if stride_pooling == 4:
+            stride_size = 4
+        model = create_cnn(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1], kernel=stride_pooling,
+                           stride=stride_size)
     elif str.lower(model_name).startswith('cnn-lstm'):
-        model = create_cnn_lstm(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1], kernel=stride_pooling)
+        if stride_pooling == 4:
+            stride_size = 4
+        model = create_cnn_lstm(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1], kernel=stride_pooling,
+                                stride=stride_size)
     elif str.lower(model_name).startswith('lstm-cnn'):
-        model = create_lstm_cnn(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1], kernel=stride_pooling)
+        if stride_pooling == 4:
+            stride_size = 4
+        model = create_lstm_cnn(input_shape=x_train.shape[-2:], output_dim=y_train.shape[-1], kernel=stride_pooling,
+                                stride=stride_size)
     else:
         print('Invalid model name')
         return
@@ -116,9 +126,9 @@ def train(x_train, y_train, x_test, y_test, model_name='lstm', stride_pooling=No
     '''
 
 
-def evaluate(x_test, y_test, model_name='lstm', plot_count=10, is2input=True):
-    model_dir = 'models/' + model_name
-    plot_dir = 'plots/' + model_name + '/'
+def evaluate(x_test, y_test, model_name='lstm', data_name='all', plot_count=10, is2input=True):
+    model_dir = 'models/' + data_name + '/' + model_name
+    plot_dir = 'plots/' + data_name + '/' + model_name + '/'
     weights = os.listdir(model_dir)
     best_val = 100
     best_weights = ''
@@ -159,12 +169,12 @@ def evaluate(x_test, y_test, model_name='lstm', plot_count=10, is2input=True):
             plt.close()
 
 
-def evaluate_yearly(x_test, y_test, model_name='lstm'):
+def evaluate_yearly(x_test, y_test, model_name='lstm', data_name='all'):
     def moving_average(x, s):
         return [np.mean(x[j:j + s]) for j in range(0, len(x), s)]
 
-    model_dir = 'models/' + model_name
-    plot_dir = 'plots/' + model_name + '/'
+    model_dir = 'models/' + data_name + '/' + model_name
+    plot_dir = 'plots/' + data_name + '/' + model_name + '/'
     weights = os.listdir(model_dir)
     best_val = 100
     best_weights = ''
@@ -217,19 +227,23 @@ def run_mlp_experiment(data_set):
     np.random.seed(13)
     tf.random.set_seed(13)
 
+    data_set_name = os.path.splitext(os.path.basename(data_set))[0]
+
     print('\n\n\nTraining begins for model MLP...\n')
-    train(x_train, y_train, x_test, y_test, model_name='MLP')
-    evaluate(x_test, y_test, model_name='MLP', plot_count=20)
-    evaluate_yearly(x_test, y_test, model_name='MLP')
+    train(x_train, y_train, x_test, y_test, model_name='MLP', data_name=data_set_name)
+    evaluate(x_test, y_test, model_name='MLP', data_name=data_set_name, plot_count=20)
+    evaluate_yearly(x_test, y_test, model_name='MLP', data_name=data_set_name)
 
     for i in [4, 8, 16, 24]:
         print('\n\n\nTraining begins for model MLP-with-pooling{}...\n'.format(str(i)))
         x_train_strided = ds.get_up_scale_data(x_train, i)
         x_test_strided = ds.get_up_scale_data(x_test, i)
-        train(x_train_strided, y_train, x_test_strided, y_test, model_name='MLP-with-pooling' + str(i))
-        evaluate([x_test, x_test_strided], y_test, model_name='MLP-with-pooling{}'.format(str(i)), plot_count=20,
+        train(x_train_strided, y_train, x_test_strided, y_test, model_name='MLP-with-pooling{}'.format(str(i))
+              , data_name=data_set_name)
+        evaluate([x_test, x_test_strided], y_test, model_name='MLP-with-pooling{}'.format(str(i)),
+                 data_name=data_set_name, plot_count=20,
                  is2input=False)
-        evaluate_yearly(x_test_strided, y_test, model_name='MLP-with-pooling{}'.format(str(i)))
+        evaluate_yearly(x_test_strided, y_test, model_name='MLP-with-pooling{}'.format(str(i)), data_name=data_set_name)
 
 
 def run_lstm_experiment(data_set):
@@ -241,11 +255,15 @@ def run_lstm_experiment(data_set):
     np.random.seed(13)
     tf.random.set_seed(13)
 
+    data_set_name = os.path.splitext(os.path.basename(data_set))[0]
+
     for i in [1, 4, 8, 16, 24]:
         print('\n\n\nTraining begins for model LSTM-with-pooling{}...\n'.format(str(i)))
-        train(x_train, y_train, x_test, y_test, model_name='LSTM-with-pooling{}'.format(str(i)), stride_pooling=i)
-        evaluate(x_test, y_test, model_name='LSTM-with-pooling{}'.format(str(i)), plot_count=20)
-        evaluate_yearly(x_test, y_test, model_name='LSTM-with-pooling{}'.format(str(i)))
+        train(x_train, y_train, x_test, y_test, model_name='LSTM-with-pooling{}'.format(str(i)),
+              data_name=data_set_name, stride_pooling=i)
+        evaluate(x_test, y_test, model_name='LSTM-with-pooling{}'.format(str(i)),
+                 data_name=data_set_name, plot_count=20)
+        evaluate_yearly(x_test, y_test, model_name='LSTM-with-pooling{}'.format(str(i)), data_name=data_set_name)
 
 
 def run_cnn_experiment(data_set):
@@ -257,16 +275,19 @@ def run_cnn_experiment(data_set):
     np.random.seed(13)
     tf.random.set_seed(13)
 
-    print('\n\n\nTraining begins for model CNN-base ...\n')
-    train(x_train, y_train, x_test, y_test, model_name='CNN-base')
-    evaluate(x_test, y_test, model_name='CNN-base', plot_count=20)
-    evaluate_yearly(x_test, y_test, model_name='CNN-base')
+    data_set_name = os.path.splitext(os.path.basename(data_set))[0]
+
+    #print('\n\n\nTraining begins for model CNN-base ...\n')
+    #train(x_train, y_train, x_test, y_test, model_name='CNN-base', data_name=data_set_name)
+    #evaluate(x_test, y_test, model_name='CNN-base', data_name=data_set_name, plot_count=20)
+    #evaluate_yearly(x_test, y_test, model_name='CNN-base', data_name=data_set_name)
 
     for i in [2, 4, 8, 16, 24]:
         print('\n\nTraining begins for model CNN-with-kernel{} ...\n'.format(str(i)))
-        train(x_train, y_train, x_test, y_test, model_name='CNN-with-kernel{}'.format(str(i)), stride_pooling=i)
-        evaluate(x_test, y_test, model_name='CNN-with-kernel{}'.format(str(i)), plot_count=20)
-        evaluate_yearly(x_test, y_test, model_name='CNN-with-kernel{}'.format(str(i)))
+        train(x_train, y_train, x_test, y_test, model_name='CNN-with-kernel{}'.format(str(i)), data_name=data_set_name,
+              stride_pooling=i)
+        evaluate(x_test, y_test, model_name='CNN-with-kernel{}'.format(str(i)), data_name=data_set_name, plot_count=20)
+        evaluate_yearly(x_test, y_test, model_name='CNN-with-kernel{}'.format(str(i)), data_name=data_set_name)
 
 
 def run_cnn_lstm_experiment(data_set):
@@ -278,11 +299,15 @@ def run_cnn_lstm_experiment(data_set):
     np.random.seed(13)
     tf.random.set_seed(13)
 
+    data_set_name = os.path.splitext(os.path.basename(data_set))[0]
+
     for i in [2, 4, 8, 16, 24]:
         print('\n\n\nTraining begins for model CNN-LSTM-with-kernel{}...\n'.format(str(i)))
-        train(x_train, y_train, x_test, y_test, model_name='CNN-LSTM-with-kernel{}'.format(str(i)), stride_pooling=i)
-        evaluate(x_test, y_test, model_name='CNN-LSTM-with-kernel{}'.format(str(i)), plot_count=20)
-        evaluate_yearly(x_test, y_test, model_name='CNN-LSTM-with-kernel{}'.format(str(i)))
+        train(x_train, y_train, x_test, y_test, model_name='CNN-LSTM-with-kernel{}'.format(str(i)),
+              data_name=data_set_name, stride_pooling=i)
+        evaluate(x_test, y_test, model_name='CNN-LSTM-with-kernel{}'.format(str(i)), data_name=data_set_name,
+                 plot_count=20)
+        evaluate_yearly(x_test, y_test, model_name='CNN-LSTM-with-kernel{}'.format(str(i)), data_name=data_set_name)
 
 
 def run_lstm_cnn_experiment(data_set):
@@ -294,45 +319,60 @@ def run_lstm_cnn_experiment(data_set):
     np.random.seed(13)
     tf.random.set_seed(13)
 
+    data_set_name = os.path.splitext(os.path.basename(data_set))[0]
+
     for i in [2, 4, 8, 16, 24]:
         print('\n\n\nTraining begins for model LSTM-CNN-with-kernel{}...\n'.format(str(i)))
-        train(x_train, y_train, x_test, y_test, model_name='LSTM-CNN-with-kernel{}'.format(str(i)), stride_pooling=i)
-        evaluate(x_test, y_test, model_name='LSTM-CNN-with-kernel{}'.format(str(i)), plot_count=20)
-        evaluate_yearly(x_test, y_test, model_name='LSTM-CNN-with-kernel{}'.format(str(i)))
+        train(x_train, y_train, x_test, y_test, model_name='LSTM-CNN-with-kernel{}'.format(str(i)),
+              data_name=data_set_name, stride_pooling=i)
+        evaluate(x_test, y_test, model_name='LSTM-CNN-with-kernel{}'.format(str(i)), data_name=data_set_name,
+                 plot_count=20)
+        evaluate_yearly(x_test, y_test, model_name='LSTM-CNN-with-kernel{}'.format(str(i)), data_name=data_set_name)
 
 
 def main(args):
     parser = argparse.ArgumentParser(
         description='run ozone forecasting models on Istanbul data sets')
-    parser.add_argument('-dataset', help='The name of data set existing in data directory', default='Kadikoy.csv')
+    parser.add_argument('-dataset', help='The name of data set existing in data directory', default='all')
     parser.add_argument('-model', help='The name of the model including mlp, lstm, cnn, lstm-cnn, cnn-lstm',
                         default='all')
 
     args = vars(parser.parse_args())
-    dataset_name = './data/' + args['dataset']
+    dataset_name = './data/' + args['dataset'] + '.csv'
     model_name = args['model']
 
     print('\n\nExperiment is started for dataset {} using {} model ...'.format(dataset_name, str.upper(model_name)))
 
-    if model_name == 'mlp':
+    if model_name == 'mlp' and args['dataset'] != 'all':
         run_mlp_experiment(dataset_name)
-    elif model_name == 'lstm':
+    elif model_name == 'lstm' and args['dataset'] != 'all':
         run_lstm_experiment(dataset_name)
-    elif model_name == 'cnn':
+    elif model_name == 'cnn' and args['dataset'] != 'all':
         run_cnn_experiment(dataset_name)
-    elif model_name == 'cnn-lstm':
+    elif model_name == 'cnn-lstm' and args['dataset'] != 'all':
         run_cnn_lstm_experiment(dataset_name)
-    elif model_name == 'lstm-cnn':
+    elif model_name == 'lstm-cnn' and args['dataset'] != 'all':
         run_lstm_cnn_experiment(dataset_name)
-    elif model_name == 'all':
+    elif model_name == 'all' and args['dataset'] != 'all':
         print('All experiments are running...')
-        run_mlp_experiment(dataset_name)
-        run_lstm_experiment(dataset_name)
+        #run_mlp_experiment(dataset_name)
+        #run_lstm_experiment(dataset_name)
         run_cnn_experiment(dataset_name)
         run_cnn_lstm_experiment(dataset_name)
         run_lstm_cnn_experiment(dataset_name)
+    elif model_name == 'all' and args['dataset'] == 'all':
+        for data_name in ['Alibeykoy', 'Basaksehir', 'Esenyurt', 'Kadikoy', 'Kagithane', 'Sultanbeyli',
+                          'Sultangazi']:
+
+            print('All experiments are running for {}...'.format(data_name))
+            dataset_name = './data/' + data_name + '.csv'
+            #run_mlp_experiment(dataset_name)
+            #run_lstm_experiment(dataset_name)
+            run_cnn_experiment(dataset_name)
+            run_cnn_lstm_experiment(dataset_name)
+            run_lstm_cnn_experiment(dataset_name)
     else:
-        print('Invalid model name')
+        print('Invalid parameters')
 
     print()
 

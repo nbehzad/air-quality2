@@ -1,6 +1,9 @@
 import numpy as np
 from numpy import genfromtxt
 from multiprocessing import Pool
+import pandas as pd
+import math
+import matplotlib.pyplot as plt
 
 
 class Dataset(object):
@@ -11,6 +14,39 @@ class Dataset(object):
     def read_csv_data(self):
         self.data_matrix = genfromtxt(self.filename, delimiter=',', skip_header=1)
         self.data_matrix = self.data_matrix[:, 4:]
+
+    def read_csv_with_cyclic_features(self):
+        df = pd.read_csv(self.filename)
+        df['Hour_cycle'] = 0
+        df['Month_cycle'] = 0
+        df['u_component'] = 0
+        df['v_component'] = 0
+
+        for i in range(len(df)):
+            df['u_component'].iloc[i] = df['Wind_speed'].iloc[i] * math.sin((270 - (df['Wind_direction']
+                                                                                    .iloc[i] * (360 / 16))) * (
+                                                                                        math.pi / 180))
+            df['v_component'].iloc[i] = df['Wind_speed'].iloc[i] * math.cos((270 - (df['Wind_direction']
+                                                                                    .iloc[i] * (360 / 16))) * (
+                                                                                        math.pi / 180))
+            df['Hour_cycle'].iloc[i] = math.sin(2 * math.pi * 60 * df['Hour'].iloc[i] / 1440)
+            df['Month_cycle'].iloc[i] = math.sin(2 * math.pi * df['Month'].iloc[i] / 12)
+
+        df.drop(['Wind_speed', 'Wind_direction', 'Year', 'Month', 'Day', 'Hour'], axis=1, inplace=True)
+        cols = df.columns.tolist()
+        cols = cols[-4:] + cols[0:-4]
+        df = df[cols]
+
+        self.data_matrix = df.to_numpy()
+
+        x = df['u_component'].values  # returns a numpy array
+        x_scaled = (x - x.min(0)) / (x.ptp(0))
+
+        fig, axis = plt.subplots(2)
+        axis[0].plot(np.arange(0, 30), x_scaled[0:30])
+        axis[1].plot(np.arange(0, 30), x[0:30])
+
+        plt.show()
 
     def normalize(self):
         self.data_matrix = (self.data_matrix - self.data_matrix.min(0)) / self.data_matrix.ptp(0)

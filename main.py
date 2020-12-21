@@ -12,6 +12,7 @@ STEP = 1
 BATCH_SIZE = 512
 EPOCHS = 20
 BUFFER_SIZE = 30000
+SEED = 13
 
 
 def create_directory(dir_name):
@@ -217,8 +218,8 @@ def run_mlp_experiment(data_set):
     ds.normalize()
     x_train, y_train, x_test, y_test = ds.get_train_test(window_size=240, predict_period=48)
 
-    np.random.seed(13)
-    tf.random.set_seed(13)
+    np.random.seed(SEED)
+    tf.random.set_seed(SEED)
 
     data_set_name = os.path.splitext(os.path.basename(data_set))[0]
 
@@ -245,12 +246,12 @@ def run_lstm_experiment(data_set):
     ds.normalize()
     x_train, y_train, x_test, y_test = ds.get_train_test(window_size=240, predict_period=48)
 
-    np.random.seed(13)
-    tf.random.set_seed(13)
+    np.random.seed(SEED)
+    tf.random.set_seed(SEED)
 
     data_set_name = os.path.splitext(os.path.basename(data_set))[0]
 
-    for i in [1, 4, 8, 16, 24]:
+    for i in [1]:
         print('\n\n\nTraining begins for model LSTM-with-pooling{}...\n'.format(str(i)))
         train(x_train, y_train, x_test, y_test, model_name='LSTM-with-pooling{}'.format(str(i)),
               data_name=data_set_name, window_size=i)
@@ -265,8 +266,8 @@ def run_cnn_experiment(data_set):
     ds.normalize()
     x_train, y_train, x_test, y_test = ds.get_train_test(window_size=240, predict_period=48)
 
-    np.random.seed(13)
-    tf.random.set_seed(13)
+    np.random.seed(SEED)
+    tf.random.set_seed(SEED)
 
     data_set_name = os.path.splitext(os.path.basename(data_set))[0]
 
@@ -275,7 +276,7 @@ def run_cnn_experiment(data_set):
     evaluate(x_test, y_test, model_name='CNN-base', data_name=data_set_name, plot_count=20)
     evaluate_yearly(x_test, y_test, model_name='CNN-base', data_name=data_set_name)
 
-    for i in [4]:
+    for i in [2, 4, 8, 16, 24]:
         print('\n\nTraining begins for model CNN-with-kernel{} ...\n'.format(str(i)))
         train(x_train, y_train, x_test, y_test, model_name='CNN-with-kernel{}'.format(str(i)), data_name=data_set_name,
               window_size=i, stride_size=i)
@@ -289,12 +290,12 @@ def run_cnn_lstm_experiment(data_set):
     ds.normalize()
     x_train, y_train, x_test, y_test = ds.get_train_test(window_size=240, predict_period=48)
 
-    np.random.seed(13)
-    tf.random.set_seed(13)
+    np.random.seed(SEED)
+    tf.random.set_seed(SEED)
 
     data_set_name = os.path.splitext(os.path.basename(data_set))[0]
 
-    for i in [4]:
+    for i in [2, 4, 8, 16, 24]:
         print('\n\n\nTraining begins for model CNN-LSTM-with-kernel{}...\n'.format(str(i)))
         train(x_train, y_train, x_test, y_test, model_name='CNN-LSTM-with-kernel{}'.format(str(i)),
               data_name=data_set_name, window_size=i, stride_size=i)
@@ -309,12 +310,12 @@ def run_lstm_cnn_experiment(data_set):
     ds.normalize()
     x_train, y_train, x_test, y_test = ds.get_train_test(window_size=240, predict_period=48)
 
-    np.random.seed(13)
-    tf.random.set_seed(13)
+    np.random.seed(SEED)
+    tf.random.set_seed(SEED)
 
     data_set_name = os.path.splitext(os.path.basename(data_set))[0]
 
-    for i in [4]:
+    for i in [2, 4, 8, 16, 24]:
         print('\n\n\nTraining begins for model LSTM-CNN-with-kernel{}...\n'.format(str(i)))
         train(x_train, y_train, x_test, y_test, model_name='LSTM-CNN-with-kernel{}'.format(str(i)),
               data_name=data_set_name, window_size=i, stride_size=i)
@@ -326,9 +327,9 @@ def run_lstm_cnn_experiment(data_set):
 def main(args):
     parser = argparse.ArgumentParser(
         description='run ozone forecasting models on Istanbul data sets')
-    parser.add_argument('-dataset', help='The name of data set existing in data directory', default='Alibeykoy')
+    parser.add_argument('-dataset', help='The name of data set existing in data directory', default='all')
     parser.add_argument('-model', help='The name of the model including mlp, lstm, cnn, lstm-cnn, cnn-lstm',
-                        default='cnn')
+                        default='all')
 
     args = vars(parser.parse_args())
     dataset_name = './data/' + args['dataset'] + '.csv'
